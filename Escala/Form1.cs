@@ -41,6 +41,7 @@ namespace Escala
                 dataGridView2.CurrentCellDirtyStateChanged += DataGridView2_CurrentCellDirtyStateChanged;
                 // Removemos a linha lateral para ficar mais limpo
                 dataGridView2.RowHeadersVisible = false;
+                
             }
         }
 
@@ -64,6 +65,12 @@ namespace Escala
                 flowLayoutPanel1.FlowDirection = FlowDirection.LeftToRight;
                 flowLayoutPanel1.WrapContents = true;
                 flowLayoutPanel1.BackColor = System.Drawing.Color.WhiteSmoke;
+                // --- CORREÇÃO AQUI ---
+                // Define que, por padrão, TODAS as células nascem Cinza Escuro
+                dataGridView2.DefaultCellStyle.BackColor = System.Drawing.Color.DarkGray;
+                // Define a cor das linhas da grade (opcional, se quiser combinar)
+                dataGridView2.GridColor = System.Drawing.Color.Black;
+                // ---------------------
             }
         }
 
@@ -135,10 +142,11 @@ namespace Escala
             InserirBloco("CFTV", OrdenarPorHorario(listaCFTV), false);      // false = Sem Itinerário
 
             // 5. Automação dos Postos
-            PreencherPostosAutomaticos("SUPERVISÃO", listaSUP, "SUP");
-            PreencherPostosAutomaticos("OPERADORES", listaOP, "VALET");
-            PreencherPostosAutomaticos("APRENDIZ", listaJV, "TREIN");
-            PreencherPostosAutomaticos("CFTV", listaCFTV, "CFTV");
+          
+            //  PreencherPostosAutomaticos("SUPERVISÃO", listaSUP, "SUP");
+            //  PreencherPostosAutomaticos("OPERADORES", listaOP, "VALET");
+            //  PreencherPostosAutomaticos("APRENDIZ", listaJV, "TREIN");
+            //  PreencherPostosAutomaticos("CFTV", listaCFTV, "CFTV");
 
             // 6. Visual e Itinerários
             CalcularTotais();
@@ -292,7 +300,6 @@ namespace Escala
         // =========================================================
         // 4. MÉTODOS AUXILIARES (Lógica de Grid e Excel)
         // =========================================================
-
         private void PreencherPostosAutomaticos(string tipoFuncionario, List<DataRow> listaDados, string postoPadrao)
         {
             foreach (DataRow dados in listaDados)
@@ -301,6 +308,10 @@ namespace Escala
                 string horarioFunc = dados[INDEX_HORARIO].ToString();
 
                 if (!TryParseHorario(horarioFunc, out TimeSpan iniFunc, out TimeSpan fimFunc)) continue;
+
+                // --- ARREDONDAMENTO REMOVIDO ---
+                // if (fimFunc.Minutes == 40) ... (APAGADO)
+
                 TimeSpan fimFuncAj = (fimFunc < iniFunc) ? fimFunc.Add(TimeSpan.FromHours(24)) : fimFunc;
 
                 foreach (DataGridViewRow rowGrid in dataGridView2.Rows)
@@ -317,7 +328,6 @@ namespace Escala
 
                                 if (estaTrabalhando)
                                 {
-                                    // Só preenche se a célula estiver vazia
                                     if (string.IsNullOrWhiteSpace(rowGrid.Cells[c].Value?.ToString()))
                                     {
                                         rowGrid.Cells[c].Value = postoPadrao;
@@ -330,7 +340,6 @@ namespace Escala
                 }
             }
         }
-
         private void InserirBloco(string titulo, List<DataRow> lista, bool gerarCartao)
         {
             if (lista.Count == 0) return;
@@ -410,29 +419,75 @@ namespace Escala
             {
                 var row = dataGridView2.Rows[r];
                 string nome = row.Cells["Nome"].Value?.ToString().ToUpper() ?? "";
-                if (nome.Contains("OPERADORES") || nome.Contains("APRENDIZ") || nome.Contains("CFTV")) continue;
 
-                string horarioFunc = row.Cells["HORARIO"].Value?.ToString() ?? "";
+                // Pula cabeçalhos
+                if (nome.Contains("OPERADORES") || nome.Contains("APRENDIZ") ||
+                    nome.Contains("CFTV") || nome.Contains("SUPERVISÃO")) continue;
+
+                string horarioFunc = row.Cells["HORARIO"].Value?.ToString().Trim() ?? "";
+
                 if (!TryParseHorario(horarioFunc, out TimeSpan iniFunc, out TimeSpan fimFunc))
                 {
-                    for (int c = 2; c < dataGridView2.Columns.Count; c++) { row.Cells[c].Style.BackColor = System.Drawing.Color.LightGray; row.Cells[c].ReadOnly = true; }
+                    // Erro de leitura = Cinza Claro
+                    for (int c = 2; c < dataGridView2.Columns.Count; c++)
+                    {
+                        row.Cells[c].Style.BackColor = System.Drawing.Color.LightGray;
+                        row.Cells[c].ReadOnly = true;
+                    }
                     continue;
                 }
+
+                // Ajuste para virada de noite (Funcionário)
                 TimeSpan fimFuncAj = (fimFunc < iniFunc) ? fimFunc.Add(TimeSpan.FromHours(24)) : fimFunc;
+
+                // --- O SEGREDO ESTÁ AQUI: TOLERÂNCIA DE SAÍDA ---
+                // Subtraímos 1 minuto da saída para evitar que "encoste" na próxima coluna
+                TimeSpan saidaVirtual = fimFuncAj.Subtract(TimeSpan.FromMinutes(1));
+                // ------------------------------------------------
 
                 for (int c = 2; c < dataGridView2.Columns.Count; c++)
                 {
                     if (TryParseHorario(dataGridView2.Columns[c].HeaderText, out TimeSpan iniCol, out TimeSpan fimCol))
                     {
+                        // Ajuste para virada de noite (Coluna)
                         TimeSpan fimColAj = (fimCol < iniCol) ? fimCol.Add(TimeSpan.FromHours(24)) : fimCol;
-                        bool disponivel = (iniFunc < fimColAj) && (fimFuncAj > iniCol);
-                        if (!disponivel) disponivel = (iniFunc.Add(TimeSpan.FromHours(24)) < fimColAj) && (fimFuncAj.Add(TimeSpan.FromHours(24)) > iniCol);
 
-                        if (!disponivel) { row.Cells[c].Style.BackColor = System.Drawing.Color.DarkGray; row.Cells[c].ReadOnly = true; }
-                        else if (row.Cells[c].Style.BackColor == System.Drawing.Color.DarkGray || row.Cells[c].Style.BackColor == System.Drawing.Color.LightGray)
+                        // LÓGICA DE INTERSECÇÃO USANDO A SAÍDA VIRTUAL
+                        // 1. O funcionário entrou ANTES da coluna acabar?
+                        // 2. A saída virtual (17:39) é DEPOIS OU IGUAL ao início da coluna?
+                        bool disponivel = (iniFunc < fimColAj) && (saidaVirtual >= iniCol);
+
+                        // Verificação extra para viradas de noite complexas
+                        if (!disponivel)
                         {
-                            row.Cells[c].Style.BackColor = System.Drawing.Color.White;
-                            row.Cells[c].ReadOnly = false;
+                            // Tenta projetar +24h
+                            disponivel = (iniFunc.Add(TimeSpan.FromHours(24)) < fimColAj) &&
+                                         (saidaVirtual.Add(TimeSpan.FromHours(24)) >= iniCol);
+                        }
+
+                        // APLICAÇÃO DAS CORES
+                        var corAtual = row.Cells[c].Style.BackColor;
+
+                        if (disponivel)
+                        {
+                            // SE TRABALHA -> PINTA DE BRANCO
+                            // Aceita pintar se for Cinza Escuro, Cinza Claro ou Vazia
+                            if (corAtual == System.Drawing.Color.DarkGray ||
+                                corAtual == System.Drawing.Color.LightGray ||
+                                corAtual.IsEmpty)
+                            {
+                                row.Cells[c].Style.BackColor = System.Drawing.Color.White;
+                                row.Cells[c].ReadOnly = false;
+                            }
+                        }
+                        else
+                        {
+                            // SE NÃO TRABALHA -> GARANTE O CINZA ESCURO
+                            if (corAtual != System.Drawing.Color.DarkGray)
+                            {
+                                row.Cells[c].Style.BackColor = System.Drawing.Color.DarkGray;
+                                row.Cells[c].ReadOnly = true;
+                            }
                         }
                     }
                 }
@@ -456,7 +511,6 @@ namespace Escala
                 catch (Exception ex) { Cursor.Current = Cursors.Default; MessageBox.Show("Erro: " + ex.Message); }
             }
         }
-
         private DataTable LerExcel(string caminho)
         {
             DataTable dt = new DataTable();
@@ -473,7 +527,6 @@ namespace Escala
             }
             return dt;
         }
-
         private void ConfigurarGridMensal()
         {
             if (dataGridView1.DataSource == null) return;
@@ -485,29 +538,44 @@ namespace Escala
             if (dataGridView1.Columns.Count > INDEX_NOME) { dataGridView1.Columns[INDEX_NOME].HeaderText = "NOME"; dataGridView1.Columns[INDEX_NOME].Width = 120; dataGridView1.Columns[INDEX_NOME].Frozen = true; }
             for (int i = INDEX_DIA_INICIO; i < dataGridView1.Columns.Count; i++) { dataGridView1.Columns[i].HeaderText = $"{i - INDEX_DIA_INICIO + 1}"; dataGridView1.Columns[i].Width = 35; }
         }
-
         private void ConfigurarGridEscalaDiaria()
         {
             dataGridView2.Rows.Clear();
             dataGridView2.Columns.Clear();
 
+
+        
+
             dataGridView2.Columns.Add("HORARIO", "HORÁRIO");
             dataGridView2.Columns.Add("Nome", "Nome");
 
-            string[] horarios = { "08:00 x 08:40", "08:40 x 09:40", "09:40 x 10:40", "10:40 x 11:40", "11:40 x 12:40", "12:40 x 13:40", "13:40 x 14:40", "14:40 x 15:40", "15:40 x 16:40", "16:40 x 17:40", "17:40 x 18:40", "18:40 x 19:40", "19:40 x 20:40", "20:40 x 21:40", "21:40 x 22:40", "22:40 x 23:40", "23:40 x 00:40", "00:40 x 01:40" };
+            // Array com horário ajustado (Minuto 41)
+            string[] horarios = { "08:00 x 08:40", "08:41 x 09:40", "09:41 x 10:40", "10:41 x 11:40", "11:41 x 12:40", "12:41 x 13:40", "13:41 x 14:40", "14:41 x 15:40", "15:41 x 16:40", "16:41 x 17:40", "17:41 x 18:40", "18:41 x 19:40", "19:41 x 20:40", "20:41 x 21:40", "21:41 x 22:40", "22:41 x 23:40", "23:41 x 00:40", "00:41 x 01:40" };
+
             var postos = new List<string> { "", "CAIXA", "VALET", "QRF", "CIRC.", "REP|CIRC", "CS1", "CS2", "CS3", "SUP", "APOIO", "TREIN", "CFTV" };
 
             foreach (var h in horarios)
             {
-                var col = new DataGridViewComboBoxColumn { HeaderText = h, DataSource = postos, FlatStyle = FlatStyle.Flat, DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing, Width = 65 };
+                var col = new DataGridViewComboBoxColumn();
+                col.HeaderText = h;
+                col.DataSource = postos;
+                col.FlatStyle = FlatStyle.Flat;
+                col.DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing;
+                col.Width = 65;
                 dataGridView2.Columns.Add(col);
+                col.CellTemplate.Style.BackColor = System.Drawing.Color.DarkGray;
             }
+
             dataGridView2.Columns["HORARIO"].Frozen = true;
             dataGridView2.Columns["Nome"].Frozen = true;
+
+            // Garante que as colunas congeladas tenham fundo branco ou cinza claro para destacar
+            dataGridView2.Columns["HORARIO"].DefaultCellStyle.BackColor = System.Drawing.Color.White;
+            dataGridView2.Columns["Nome"].DefaultCellStyle.BackColor = System.Drawing.Color.White;
+
             dataGridView2.Columns["HORARIO"].Width = 80;
             dataGridView2.Columns["Nome"].Width = 110;
         }
-
         private void CalcularTotais()
         {
             for (int i = 0; i < dataGridView2.Rows.Count; i++)
@@ -529,7 +597,6 @@ namespace Escala
                 }
             }
         }
-
         private void DataGridView2_CurrentCellDirtyStateChanged(object sender, EventArgs e)
         {
             if (dataGridView2.IsCurrentCellDirty)
@@ -540,7 +607,6 @@ namespace Escala
                 AtualizarItinerarios();
             }
         }
-
         private void DataGridView2_CellEnter(object sender, DataGridViewCellEventArgs e) { if (e.ColumnIndex > 1) SendKeys.Send("{F4}"); }
         private void CbSeletorDia_SelectedIndexChanged(object sender, EventArgs e) { if (CbSeletorDia.SelectedItem != null && Regex.Match(CbSeletorDia.SelectedItem.ToString(), @"\d+").Success) { _diaSelecionado = int.Parse(Regex.Match(CbSeletorDia.SelectedItem.ToString(), @"\d+").Value); ProcessarEscalaDoDia(); } }
         private bool EhFolga(string codigo) { if (string.IsNullOrWhiteSpace(codigo)) return false; return new[] { "X", "FOLGA", "FERIAS", "FÉRIAS" }.Contains(codigo.Trim().ToUpper()); }

@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
             CbSeletorDia = new ComboBox();
             btnImportar = new Button();
             btnRecarregarBanco = new Button();
@@ -95,10 +96,22 @@
             // 
             // dataGridView2
             // 
+            dataGridView2.BackgroundColor = SystemColors.ControlDarkDark;
             dataGridView2.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle1.BackColor = SystemColors.WindowFrame;
+            dataGridViewCellStyle1.Font = new Font("Segoe UI", 9F);
+            dataGridViewCellStyle1.ForeColor = SystemColors.ControlText;
+            dataGridViewCellStyle1.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle1.WrapMode = DataGridViewTriState.False;
+            dataGridView2.DefaultCellStyle = dataGridViewCellStyle1;
             dataGridView2.Dock = DockStyle.Fill;
+            dataGridView2.GridColor = Color.DarkGray;
             dataGridView2.Location = new Point(3, 3);
             dataGridView2.Name = "dataGridView2";
+            
+            
             dataGridView2.Size = new Size(1333, 632);
             dataGridView2.TabIndex = 1;
             // 
