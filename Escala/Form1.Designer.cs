@@ -29,6 +29,8 @@
         private void InitializeComponent()
         {
             DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+            DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             CbSeletorDia = new ComboBox();
             btnImportar = new Button();
             btnRecarregarBanco = new Button();
@@ -40,35 +42,42 @@
             tabControl1 = new TabControl();
             tabPage3 = new TabPage();
             flowLayoutPanel1 = new FlowLayoutPanel();
+            tabPage4 = new TabPage();
+            dataGridView3 = new DataGridView();
             lblClima = new Label();
+            BtnGerenciarPostos = new Button();
+            btnExportar = new Button();
             tabPage2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView2).BeginInit();
             tabPage1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             tabControl1.SuspendLayout();
             tabPage3.SuspendLayout();
+            tabPage4.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dataGridView3).BeginInit();
             SuspendLayout();
             // 
             // CbSeletorDia
             // 
+            CbSeletorDia.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
             CbSeletorDia.FormattingEnabled = true;
-            CbSeletorDia.Location = new Point(281, 16);
+            CbSeletorDia.Location = new Point(313, 16);
             CbSeletorDia.Name = "CbSeletorDia";
-            CbSeletorDia.Size = new Size(64, 23);
+            CbSeletorDia.Size = new Size(75, 29);
             CbSeletorDia.TabIndex = 1;
             // 
             // btnImportar
             // 
-            btnImportar.Location = new Point(351, 3);
+            btnImportar.Location = new Point(394, 3);
             btnImportar.Name = "btnImportar";
-            btnImportar.Size = new Size(115, 47);
+            btnImportar.Size = new Size(115, 44);
             btnImportar.TabIndex = 2;
             btnImportar.Text = "Carregar escala mensal";
             btnImportar.UseVisualStyleBackColor = true;
             // 
             // btnRecarregarBanco
             // 
-            btnRecarregarBanco.Location = new Point(472, 3);
+            btnRecarregarBanco.Location = new Point(515, 3);
             btnRecarregarBanco.Name = "btnRecarregarBanco";
             btnRecarregarBanco.Size = new Size(115, 44);
             btnRecarregarBanco.TabIndex = 3;
@@ -78,7 +87,7 @@
             // 
             // btnImprimir
             // 
-            btnImprimir.Location = new Point(593, 3);
+            btnImprimir.Location = new Point(636, 3);
             btnImprimir.Name = "btnImprimir";
             btnImprimir.Size = new Size(115, 44);
             btnImprimir.TabIndex = 4;
@@ -140,6 +149,7 @@
             tabControl1.Controls.Add(tabPage1);
             tabControl1.Controls.Add(tabPage2);
             tabControl1.Controls.Add(tabPage3);
+            tabControl1.Controls.Add(tabPage4);
             tabControl1.Location = new Point(3, 29);
             tabControl1.Name = "tabControl1";
             tabControl1.SelectedIndex = 0;
@@ -164,29 +174,80 @@
             flowLayoutPanel1.Size = new Size(1333, 630);
             flowLayoutPanel1.TabIndex = 0;
             // 
+            // tabPage4
+            // 
+            tabPage4.Controls.Add(dataGridView3);
+            tabPage4.Location = new Point(4, 24);
+            tabPage4.Name = "tabPage4";
+            tabPage4.Size = new Size(1353, 638);
+            tabPage4.TabIndex = 3;
+            tabPage4.Text = "Posto Mensal";
+            tabPage4.UseVisualStyleBackColor = true;
+            // 
+            // dataGridView3
+            // 
+            dataGridView3.BackgroundColor = SystemColors.ControlDarkDark;
+            dataGridView3.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = SystemColors.WindowFrame;
+            dataGridViewCellStyle2.Font = new Font("Segoe UI", 9F);
+            dataGridViewCellStyle2.ForeColor = SystemColors.ControlText;
+            dataGridViewCellStyle2.SelectionBackColor = SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = DataGridViewTriState.False;
+            dataGridView3.DefaultCellStyle = dataGridViewCellStyle2;
+            dataGridView3.Dock = DockStyle.Fill;
+            dataGridView3.GridColor = Color.DarkGray;
+            dataGridView3.Location = new Point(0, 0);
+            dataGridView3.Name = "dataGridView3";
+            dataGridView3.Size = new Size(1353, 638);
+            dataGridView3.TabIndex = 2;
+            // 
             // lblClima
             // 
             lblClima.AutoSize = true;
             lblClima.Font = new Font("Segoe UI", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            lblClima.Location = new Point(842, 15);
+            lblClima.Location = new Point(1009, 16);
             lblClima.Name = "lblClima";
             lblClima.Size = new Size(205, 25);
             lblClima.TabIndex = 5;
             lblClima.Text = "Carregando previsão ...";
+            // 
+            // BtnGerenciarPostos
+            // 
+            BtnGerenciarPostos.Location = new Point(757, 3);
+            BtnGerenciarPostos.Name = "BtnGerenciarPostos";
+            BtnGerenciarPostos.Size = new Size(115, 44);
+            BtnGerenciarPostos.TabIndex = 6;
+            BtnGerenciarPostos.Text = "Configurações";
+            BtnGerenciarPostos.UseVisualStyleBackColor = true;
+            // 
+            // btnExportar
+            // 
+            btnExportar.Location = new Point(878, 3);
+            btnExportar.Name = "btnExportar";
+            btnExportar.Size = new Size(115, 44);
+            btnExportar.TabIndex = 7;
+            btnExportar.Text = "Exportar";
+            btnExportar.UseVisualStyleBackColor = true;
+            btnExportar.Click += btnExportar_Click;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1368, 698);
+            Controls.Add(btnExportar);
+            Controls.Add(BtnGerenciarPostos);
             Controls.Add(lblClima);
             Controls.Add(btnImprimir);
             Controls.Add(btnRecarregarBanco);
             Controls.Add(btnImportar);
             Controls.Add(CbSeletorDia);
             Controls.Add(tabControl1);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Form1";
-            Text = "Form1";
+            Text = "Escala";
             Load += Form1_Load;
             tabPage2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dataGridView2).EndInit();
@@ -194,6 +255,8 @@
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             tabControl1.ResumeLayout(false);
             tabPage3.ResumeLayout(false);
+            tabPage4.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)dataGridView3).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -211,5 +274,9 @@
         private TabPage tabPage3;
         private FlowLayoutPanel flowLayoutPanel1;
         private Label lblClima;
+        private Button BtnGerenciarPostos;
+        private Button btnExportar;
+        private TabPage tabPage4;
+        private DataGridView dataGridView3;
     }
 }

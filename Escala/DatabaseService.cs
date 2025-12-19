@@ -17,11 +17,7 @@ namespace Escala
             {
                 connection.Open();
 
-                // 1. Tabela Mensal (Armazena o Excel importado)
-                // Vamos armazenar como JSON ou colunas dinâmicas? 
-                // Para simplificar e manter a performance, vamos armazenar linha a linha, coluna a coluna é muito complexo dado o DataTable dinâmico.
-                // Melhor: Armazenar células C1..C36
-                
+                // 1. Existing Tables
                 var cmd = connection.CreateCommand();
                 cmd.CommandText = @"
                     CREATE TABLE IF NOT EXISTS MonthlyData (
@@ -34,7 +30,7 @@ namespace Escala
                     );
 
                     CREATE TABLE IF NOT EXISTS DailyAssignments (
-                        DateKey TEXT NOT NULL, -- Ex: 2023-10-05 (Vamos usar Dia apenas? Melhor usar chave 'Dia 5')
+                        DateKey TEXT NOT NULL,
                         StaffName TEXT NOT NULL,
                         TimeSlot TEXT NOT NULL,
                         Post TEXT,
@@ -42,8 +38,154 @@ namespace Escala
                     );
                 ";
                 cmd.ExecuteNonQuery();
+
+                // 2. New Tables for Configuration
+                var cmdConfig = connection.CreateCommand();
+                cmdConfig.CommandText = @"
+                    CREATE TABLE IF NOT EXISTS ConfigPostos (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                        Nome TEXT UNIQUE
+                    );
+
+                    CREATE TABLE IF NOT EXISTS ConfigHorarios (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                        Descricao TEXT UNIQUE, 
+                        Ordem INTEGER
+                    );
+                ";
+                cmdConfig.ExecuteNonQuery();
+
+                // Initialize Default Data if tables are empty
+                InicializarDadosPadrao(connection);
             }
         }
+
+        private static void InicializarDadosPadrao(SqliteConnection conn)
+        {
+            // Check and Init Postos
+            var cmdCheckPostos = new SqliteCommand("SELECT COUNT(*) FROM ConfigPostos", conn);
+            long countPostos = (long)cmdCheckPostos.ExecuteScalar();
+
+            if (countPostos == 0)
+            {
+                var postosPadrao = new[] { "", "CAIXA", "VALET", "QRF", "CIRC.", "REP|CIRC", "CS1", "CS2", "CS3", "SUP", "APOIO", "TREIN", "CFTV", "ECHO 21" };
+                foreach (var p in postosPadrao)
+                {
+                    var cmd = new SqliteCommand("INSERT INTO ConfigPostos (Nome) VALUES (@nome)", conn);
+                    cmd.Parameters.AddWithValue("@nome", p);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+
+            // Check and Init Horarios
+            var cmdCheckHorarios = new SqliteCommand("SELECT COUNT(*) FROM ConfigHorarios", conn);
+            long countHorarios = (long)cmdCheckHorarios.ExecuteScalar();
+
+            if (countHorarios == 0)
+            {
+                var horariosPadrao = new[] {
+                    "08:00 x 08:40", "08:41 x 09:40", "09:41 x 10:40", "10:41 x 11:40",
+                    "11:41 x 12:40", "12:41 x 13:40", "13:41 x 14:40", "14:41 x 15:40",
+                    "15:41 x 16:40", "16:41 x 17:40", "17:41 x 18:40", "18:41 x 19:40",
+                    "19:41 x 20:40", "20:41 x 21:40", "21:41 x 22:40", "22:41 x 23:40",
+                    "23:41 x 00:40", "00:41 x 01:40"
+                };
+
+                int ordem = 1;
+                foreach (var h in horariosPadrao)
+                {
+                    var cmd = new SqliteCommand("INSERT INTO ConfigHorarios (Descricao, Ordem) VALUES (@desc, @ordem)", conn);
+                    cmd.Parameters.AddWithValue("@desc", h);
+                    cmd.Parameters.AddWithValue("@ordem", ordem++);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        // --- Methods for Reading Configuration ---
+
+        public static List<string> GetPostosConfigurados()
+        {
+            var lista = new List<string>();
+            using (var conn = new SqliteConnection(ConnectionString))
+            {
+                conn.Open();
+                var cmd = new SqliteCommand("SELECT Nome FROM ConfigPostos ORDER BY Nome", conn);
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read()) lista.Add(reader.GetString(0));
+                }
+            }
+            if (!lista.Contains("")) lista.Insert(0, "");
+            return lista;
+        }
+
+        public static List<string> GetHorariosConfigurados()
+        {
+            var lista = new List<string>();
+            using (var conn = new SqliteConnection(ConnectionString))
+            {
+                conn.Open();
+                var cmd = new SqliteCommand("SELECT Descricao FROM ConfigHorarios ORDER BY Ordem", conn);
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read()) lista.Add(reader.GetString(0));
+                }
+            }
+            return lista;
+        }
+
+        // --- Methods for Modifying Configuration ---
+
+        public static void AdicionarPosto(string nome)
+        {
+            using (var conn = new SqliteConnection(ConnectionString))
+            {
+                conn.Open();
+                var cmd = new SqliteCommand("INSERT INTO ConfigPostos (Nome) VALUES (@nome)", conn);
+                cmd.Parameters.AddWithValue("@nome", nome.ToUpper());
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public static void RemoverPosto(string nome)
+        {
+            using (var conn = new SqliteConnection(ConnectionString))
+            {
+                conn.Open();
+                var cmd = new SqliteCommand("DELETE FROM ConfigPostos WHERE Nome = @nome", conn);
+                cmd.Parameters.AddWithValue("@nome", nome);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public static void AdicionarHorario(string descricao)
+        {
+            using (var conn = new SqliteConnection(ConnectionString))
+            {
+                conn.Open();
+                var cmdOrd = new SqliteCommand("SELECT IFNULL(MAX(Ordem), 0) + 1 FROM ConfigHorarios", conn);
+                int novaOrdem = Convert.ToInt32(cmdOrd.ExecuteScalar());
+
+                var cmd = new SqliteCommand("INSERT INTO ConfigHorarios (Descricao, Ordem) VALUES (@desc, @ordem)", conn);
+                cmd.Parameters.AddWithValue("@desc", descricao);
+                cmd.Parameters.AddWithValue("@ordem", novaOrdem);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public static void RemoverHorario(string descricao)
+        {
+            using (var conn = new SqliteConnection(ConnectionString))
+            {
+                conn.Open();
+                var cmd = new SqliteCommand("DELETE FROM ConfigHorarios WHERE Descricao = @desc", conn);
+                cmd.Parameters.AddWithValue("@desc", descricao);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        // --- Existing Methods (Maintained) ---
 
         public static void SaveMonthlyData(DataTable dt)
         {
@@ -52,28 +194,24 @@ namespace Escala
                 connection.Open();
                 using (var transaction = connection.BeginTransaction())
                 {
-                    // Limpa tabela anterior
                     var cmdClear = connection.CreateCommand();
                     cmdClear.Transaction = transaction;
                     cmdClear.CommandText = "DELETE FROM MonthlyData";
                     cmdClear.ExecuteNonQuery();
 
-                    // Insere novos dados
                     foreach (DataRow row in dt.Rows)
                     {
                         var cmdInsert = connection.CreateCommand();
                         cmdInsert.Transaction = transaction;
-                        
-                        // Monta a query dinamicamente é feio mas funcional para 36 colunas fixas
-                        // Melhor usar parametros
+
                         var cols = new List<string>();
                         var vals = new List<string>();
-                        
+
                         for (int i = 1; i <= 36; i++)
                         {
                             cols.Add($"C{i}");
                             vals.Add($"@C{i}");
-                            cmdInsert.Parameters.AddWithValue($"@C{i}", row[i-1] ?? DBNull.Value);
+                            cmdInsert.Parameters.AddWithValue($"@C{i}", row[i - 1] ?? DBNull.Value);
                         }
 
                         cmdInsert.CommandText = $"INSERT INTO MonthlyData ({string.Join(",", cols)}) VALUES ({string.Join(",", vals)})";
@@ -97,7 +235,7 @@ namespace Escala
                 connection.Open();
                 var cmd = connection.CreateCommand();
                 cmd.CommandText = "SELECT * FROM MonthlyData ORDER BY Id";
-                
+
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
@@ -105,7 +243,7 @@ namespace Escala
                         var row = dt.NewRow();
                         for (int i = 1; i <= 36; i++)
                         {
-                            row[i-1] = reader[$"C{i}"];
+                            row[i - 1] = reader[$"C{i}"];
                         }
                         dt.Rows.Add(row);
                     }
@@ -120,13 +258,11 @@ namespace Escala
             {
                 connection.Open();
                 var cmd = connection.CreateCommand();
-                
-                // UPSERT (SQLite supporta INSERT OR REPLACE)
                 cmd.CommandText = @"
                     INSERT OR REPLACE INTO DailyAssignments (DateKey, StaffName, TimeSlot, Post)
                     VALUES (@DateKey, @StaffName, @TimeSlot, @Post)
                 ";
-                
+
                 cmd.Parameters.AddWithValue("@DateKey", $"Dia {dia}");
                 cmd.Parameters.AddWithValue("@StaffName", nome);
                 cmd.Parameters.AddWithValue("@TimeSlot", horario);
@@ -138,8 +274,7 @@ namespace Escala
 
         public static Dictionary<string, Dictionary<string, string>> GetAssignmentsForDay(int dia)
         {
-            var result = new Dictionary<string, Dictionary<string, string>>(); 
-            // StaffName -> { TimeSlot -> Post }
+            var result = new Dictionary<string, Dictionary<string, string>>();
 
             if (!File.Exists(DbPath)) return result;
 
@@ -178,6 +313,36 @@ namespace Escala
                 cmd.CommandText = "DELETE FROM DailyAssignments";
                 cmd.ExecuteNonQuery();
             }
+        }
+
+        public static void ClearAssignmentsForDay(int dia)
+        {
+            using (var connection = new SqliteConnection(ConnectionString))
+            {
+                connection.Open();
+                var cmd = connection.CreateCommand();
+                cmd.CommandText = "DELETE FROM DailyAssignments WHERE DateKey = @DateKey";
+                cmd.Parameters.AddWithValue("@DateKey", $"Dia {dia}");
+                cmd.ExecuteNonQuery();
+            }
+        }
+        private static string ConfigFile = "config_folguista.txt";
+
+        public static void SetHorarioPadraoFolguista(string horario)
+        {
+            try { System.IO.File.WriteAllText(ConfigFile, horario); } catch { }
+        }
+
+        public static string GetHorarioPadraoFolguista()
+        {
+            try
+            {
+                if (System.IO.File.Exists(ConfigFile))
+                    return System.IO.File.ReadAllText(ConfigFile);
+            }
+            catch { }
+
+            return "12:40 X 21:00"; // Retorna esse se n�o tiver nada salvo
         }
     }
 }
