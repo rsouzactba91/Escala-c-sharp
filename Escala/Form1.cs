@@ -85,6 +85,7 @@ namespace Escala
             }
 
             this.WindowState = FormWindowState.Maximized;
+            this.tabControl1.SelectedIndex = 1;
 
             if (CbSeletorDia != null)
             {
@@ -654,7 +655,7 @@ namespace Escala
             {
                 var row = dataGridView2.Rows[r];
                 string nome = row.Cells["Nome"].Value?.ToString() ?? "";
-                if (nome.Contains("OPERADORES") || nome.Contains("CFTV")) continue;
+                if (nome.Contains("OPERADORES") || nome.Contains("CFTV") || nome.Contains("APRENDIZ")) continue;
 
                 string horarioFunc = row.Cells["HORARIO"].Value?.ToString() ?? "";
                 if (!TryParseHorario(horarioFunc, out TimeSpan ini, out TimeSpan fim)) continue;
@@ -701,6 +702,10 @@ namespace Escala
         {
             for (int r = 0; r < dataGridView2.Rows.Count; r++)
             {
+                var row = dataGridView2.Rows[r];
+                string nome = row.Cells["Nome"].Value?.ToString() ?? "";
+                if (nome.Contains("OPERADORES") || nome.Contains("CFTV") || nome.Contains("APRENDIZ")) continue;
+
                 for (int c = 3; c < dataGridView2.Columns.Count; c++)
                 {
                     var cell = dataGridView2.Rows[r].Cells[c];
@@ -1032,12 +1037,13 @@ namespace Escala
                 AtualizarItinerarios();
             }
         }
-        private void CalcularTotais()
+                private void CalcularTotais()
         {
             // Percorre todas as linhas para achar os cabeçalhos/rodapés (linhas amarelas)
             for (int i = 0; i < dataGridView2.Rows.Count; i++)
             {
-                string textoLinha = dataGridView2.Rows[i].Cells[2].Value?.ToString()?.ToUpper() ?? "";
+                // Usa o nome da coluna para garantir segurança
+                string textoLinha = dataGridView2.Rows[i].Cells["Nome"].Value?.ToString()?.ToUpper() ?? "";
 
                 // Se achou a linha de total (ex: "OPERADORES (10)")
                 if (textoLinha.Contains("OPERADORES") || textoLinha.Contains("APRENDIZ") || textoLinha.Contains("CFTV"))
@@ -1047,12 +1053,12 @@ namespace Escala
                     {
                         int count = 0;
 
-                        // Olha para trás (linhas acima) até encontrar o próximo cabeçalho
+                        // Olha para trás (linhas acima) até encontrar o próximo cabeçalho ou o topo
                         for (int k = i - 1; k >= 0; k--)
                         {
-                            string tAnt = dataGridView2.Rows[k].Cells[2].Value?.ToString()?.ToUpper() ?? "";
+                            string tAnt = dataGridView2.Rows[k].Cells["Nome"].Value?.ToString()?.ToUpper() ?? "";
 
-                            // Se bateu no bloco anterior, para de contar
+                            // Se bateu no bloco anterior (ex: acabou os operadores e chegou no cabeçalho anterior), para de contar
                             if (tAnt.Contains("OPERADORES") || tAnt.Contains("APRENDIZ") || tAnt.Contains("CFTV"))
                                 break;
 
@@ -1061,8 +1067,22 @@ namespace Escala
                                 count++;
                         }
 
+                        // IMPORTANTE: O Grid é de ComboBox, mas o Total é Número.
+                        // Precisamos converter a célula para Texto para aceitar o número
+                        if (dataGridView2.Rows[i].Cells[c] is DataGridViewComboBoxCell)
+                        {
+                            dataGridView2.Rows[i].Cells[c] = new DataGridViewTextBoxCell();
+                        }
+
                         // Escreve o total na linha amarela (se for 0, deixa vazio para limpar o visual)
                         dataGridView2.Rows[i].Cells[c].Value = count > 0 ? count.ToString() : "";
+                        
+                        // Opcional: Centralizar para ficar bonito
+                        if (count > 0) 
+                        {
+                            dataGridView2.Rows[i].Cells[c].Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                            dataGridView2.Rows[i].Cells[c].Style.Font = new Font("Bahnschrift Condensed", 10, FontStyle.Bold); 
+                        }
                     }
                 }
             }
@@ -1253,12 +1273,12 @@ namespace Escala
         }
         private void DataGridView2_DataError(object? sender, DataGridViewDataErrorEventArgs e)
         {
-            // Silencia o erro chato do ComboBox
-            if (e.Exception is ArgumentException)
-            {
-                e.ThrowException = false; // Não mostra a janela de erro
-                e.Cancel = false;         // <<< OBRIGATÓRIO: Força o Grid a aceitar o valor selecionado
-            }
+            // CÓDIGO NUCLEAR: Mata qualquer erro do Grid e força aceitar o valor.
+            // Não importa qual seja o erro, não mostre a caixa de diálogo.
+            e.ThrowException = false;
+
+            // Importante para o contador funcionar: Diz pro grid "Aceite esse valor mesmo assim"
+            e.Cancel = false;
         }
     }
 }
